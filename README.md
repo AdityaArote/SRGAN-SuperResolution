@@ -1,180 +1,177 @@
-## Super Resolution Examples
-
-- Implementation of ["Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network"](https://arxiv.org/abs/1609.04802)
-
-- For earlier version, please check [srgan release](https://github.com/tensorlayer/srgan/releases) and [tensorlayer](https://github.com/tensorlayer/TensorLayer).
-
-- For more computer vision applications, check [TLXCV](https://github.com/tensorlayer/TLXCV)
-
-
-### SRGAN Architecture
-
-
-<a href="https://github.com/tensorlayer/TensorLayerX">
 <div align="center">
-	<img src="img/model.jpeg" width="80%" height="10%"/>
+
+# ⚡ SRGAN: Photo-Realistic Single Image Super-Resolution (4x)
+### *Deep Learning Implementation in PyTorch & TensorLayerX*
+
+[![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![TensorLayerX](https://img.shields.io/badge/TensorLayerX-0.5.8-00C49F?style=for-the-badge)](https://github.com/tensorlayer/TensorLayerX)
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=for-the-badge)](LICENSE)
+[![GitHub](https://img.shields.io/badge/Maintained%20by-Aditya%20Arote-black?style=for-the-badge&logo=github)](https://github.com/AdityaArote)
+
+<p align="center">
+  A state-of-the-art Generative Adversarial Network that synthesizes high-frequency, photorealistic 4x textures from low-resolution images.
+</p>
+
+<img src="img/model.jpeg" width="90%" alt="SRGAN Architecture" />
+
 </div>
-</a>
-<a href="https://github.com/tensorlayer/TensorLayerX">
+
+---
+
+## 🌟 Overview
+
+Single Image Super-Resolution (SISR) has traditionally relied on minimizing Mean Squared Error (MSE), which maximizes Peak Signal-to-Noise Ratio (PSNR) but produces unnaturally smooth, blurry images lacking fine details.
+
+This project implements **SRGAN** (*Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network* by Christian Ledig et al.). By coupling deep **Residual Blocks**, **Sub-pixel Convolutions (PixelShuffle)**, **VGG-19 Perceptual Content Loss**, and an **Adversarial Loss**, the network recovers fine photographic details and microscopic textures.
+
+### 🔬 Results Showcase
 <div align="center">
-	<img src="img/SRGAN_Result3.png" width="80%" height="50%"/>
+  <img src="img/SRGAN_Result3.png" width="90%" alt="SRGAN Super-Resolution Visual Comparison" />
 </div>
-</a>
 
-### Prepare Data and Pre-trained VGG
+---
 
-- 1. You need to download the pretrained VGG19 model weights in [here](https://drive.google.com/file/d/1CLw6Cn3yNI1N15HyX99_Zy9QnDcgP3q7/view?usp=sharing).
-- 2. You need to have the high resolution images for training.
-  -  In this experiment, I used images from [DIV2K - bicubic downscaling x4 competition](http://www.vision.ee.ethz.ch/ntire17/), so the hyper-paremeters in `config.py` (like number of epochs) are seleted basic on that dataset, if you change a larger dataset you can reduce the number of epochs. 
-  -  If you dont want to use DIV2K dataset, you can also use [Yahoo MirFlickr25k](http://press.liacs.nl/mirflickr/mirdownload.html), just simply download it using `train_hr_imgs = tl.files.load_flickr25k_dataset(tag=None)` in `main.py`. 
-  -  If you want to use your own images, you can set the path to your image folder via `config.TRAIN.hr_img_path` in `config.py`.
+## 🚀 Key Features
 
+- **4x Super-Resolution**: Upscales low-resolution images by a factor of 4 while generating sharp, believable textures.
+- **Deep ResNet Architecture**: Generator with 16 Residual Blocks using identical identity skip connections.
+- **PixelShuffle Upsampling**: Sub-pixel convolutions avoid checkerboard artifacts common to transposed deconvolution.
+- **VGG-19 Perceptual Loss**: Measures distance in high-level feature space rather than raw pixel Euclidean distance.
+- **Multi-Backend Ready**: Optimized for **PyTorch** (compatible with Apple Silicon MPS, NVIDIA CUDA, and CPU) alongside support for TensorFlow.
+- **Instant CLI Demo**: Ready-to-use inference script (`demo.py`) for processing arbitrary images with single commands.
 
+---
 
-### Run
+## 🧠 Model Architecture & Mechanism
 
-🔥🔥🔥🔥🔥🔥 You need install [TensorLayerX](https://github.com/tensorlayer/TensorLayerX#installation) at first!
+```
+Low-Res Input (96x96x3)
+       │
+       ▼
+┌────────────────────────────────────────────────────────┐
+│  GENERATOR (SRGAN_g)                                   │
+│  ├── Initial Conv2D (64 filters, 3x3, PReLU/ReLU)      │
+│  ├── 16 Residual Blocks with Identity Skip Connections │
+│  ├── 2x PixelShuffle Upsample Blocks (2x * 2x = 4x)    │
+│  └── Final Conv2D + Tanh [-1.0, 1.0]                   │
+└────────────────────────────────────────────────────────┘
+       │
+       ▼ Generated Super-Resolution (384x384x3)
+       ├─────────────────────────────────┐
+       ▼                                 ▼
+┌───────────────────────────┐     ┌───────────────────────────┐
+│ DISCRIMINATOR (SRGAN_d)   │     │ VGG-19 Feature Extractor  │
+│ ├── Strided Conv Blocks   │     │ ├── Pretrained on ImageNet│
+│ ├── LeakyReLU Activations │     │ ├── Evaluates deep shapes │
+│ └── Sigmoid Output [0, 1] │     │ └── Computes Content Loss │
+└───────────────────────────┘     └───────────────────────────┘
+```
 
-🔥🔥🔥🔥🔥🔥 Please install TensorLayerX via source
+### Why These Activations?
+- **LeakyReLU**: Employed across the Discriminator to prevent the *"Dying ReLU"* trap where inactive neurons get zero gradient.
+- **Sigmoid**: Compresses discriminator output into $[0.0, 1.0]$ representing probability of realism.
+- **Tanh**: Normalizes final generator output into $[-1.0, 1.0]$, ensuring valid bounded pixel color ranges.
+
+### Multi-Task Loss Formulation
+The Generator is trained using a weighted composite loss:
+
+$$\mathcal{L}_{\text{Total}} = \mathcal{L}_{\text{MSE}} + 2\cdot 10^{-6} \mathcal{L}_{\text{VGG}} + 10^{-3} \mathcal{L}_{\text{Adversarial}}$$
+
+---
+
+## 🛠️ Installation & Setup
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/AdityaArote/SRGAN-SuperResolution.git
+cd SRGAN-SuperResolution
+```
+
+### 2. Create and Activate Conda Environment
+```bash
+conda create -y -n srgan python=3.10
+conda activate srgan
+```
+
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 📦 Download Pre-trained Weights
+
+Pretrained generator weights can be downloaded into the `models/` directory:
 
 ```bash
-pip install git+https://github.com/tensorlayer/tensorlayerx.git 
+mkdir -p models
+# Download pre-trained generator weights via gdown
+gdown 1GlU9At-5XEDilgnt326fyClvZB_fsaFZ -O models/g.npz
 ```
 
-#### Train
-- Set your image folder in `config.py`, if you download [DIV2K - bicubic downscaling x4 competition](http://www.vision.ee.ethz.ch/ntire17/) dataset, you don't need to change it. 
-- Other links for DIV2K, in case you can't find it : [test\_LR\_bicubic_X4](https://data.vision.ee.ethz.ch/cvl/DIV2K/validation_release/DIV2K_test_LR_bicubic_X4.zip), [train_HR](https://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_HR.zip), [train\_LR\_bicubic_X4](https://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_LR_bicubic_X4.zip), [valid_HR](https://data.vision.ee.ethz.ch/cvl/DIV2K/validation_release/DIV2K_valid_HR.zip), [valid\_LR\_bicubic_X4](https://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_valid_LR_bicubic_X4.zip).
+*(Optional) VGG-19 weights for training can be downloaded from [Google Drive](https://drive.google.com/file/d/1CLw6Cn3yNI1N15HyX99_Zy9QnDcgP3q7/view?usp=sharing) and placed at `model/vgg19.npy`.*
 
-```python
-config.TRAIN.img_path = "your_image_folder/"
-```
-Your directory structure should look like this:
+---
 
-```
-srgan/
-    └── config.py
-    └── srgan.py
-    └── train.py
-    └── vgg.py
-    └── model
-          └── vgg19.npy
-    └── DIV2K
-          └── DIV2K_train_HR
-          ├── DIV2K_train_LR_bicubic
-          ├── DIV2K_valid_HR
-          └── DIV2K_valid_LR_bicubic
+## 💻 Usage
 
-```
-
-- Start training.
+### 1. Run 4x Super-Resolution on Any Image (Demo)
+Run inference on a custom image using [demo.py](demo.py):
 
 ```bash
-python train.py
+python demo.py --image "path/to/your/image.jpg" --output_dir samples/
 ```
 
-🔥Modify a line of code in **train.py**, easily switch to any framework!
+This generates:
+- **`[name]_lr.png`**: Original input.
+- **`[name]_bicubic.png`**: Standard 4x bicubic baseline.
+- **`[name]_srgan.png`**: Photorealistic 4x SRGAN result.
 
-```python
-import os
-os.environ['TL_BACKEND'] = 'tensorflow'
-# os.environ['TL_BACKEND'] = 'mindspore'
-# os.environ['TL_BACKEND'] = 'paddle'
-# os.environ['TL_BACKEND'] = 'pytorch'
-```
-🚧 We will support PyTorch as Backend soon.
+### 2. Evaluation Mode
+Run evaluation against validation images or fallback samples:
 
-
-#### Evaluation.
-
-🔥 We have trained SRGAN on DIV2K dataset.
-🔥 Download model weights as follows.
-
-|              | SRGAN_g | SRGAN_d | 
-|------------- |---------|---------|
-| TensorFlow   | [Baidu](https://pan.baidu.com/s/118uUg3oce_3NZQCIWHVjmA?pwd=p9li), [Googledrive](https://drive.google.com/file/d/1GlU9At-5XEDilgnt326fyClvZB_fsaFZ/view?usp=sharing) |[Baidu](https://pan.baidu.com/s/1DOpGzDJY5PyusKzaKqbLOg?pwd=g2iy), [Googledrive](https://drive.google.com/file/d/1RpOtVcVK-yxnVhNH4KSjnXHDvuU_pq3j/view?usp=sharing)   |        
-| PaddlePaddle | [Baidu](https://pan.baidu.com/s/1ngBpleV5vQZQqNE_8djDIg?pwd=s8wc), [Googledrive](https://drive.google.com/file/d/1GRNt_ZsgorB19qvwN5gE6W9a_bIPLkg1/view?usp=sharing)  | [Baidu](https://pan.baidu.com/s/1nSefLNRanFImf1DskSVpCg?pwd=befc), [Googledrive](https://drive.google.com/file/d/1Jf6W1ZPdgtmUSfrQ5mMZDB_hOCVU-zFo/view?usp=sharing)   |         
-| MindSpore    | 🚧Coming soon!    | 🚧Coming soon!     |         
-| PyTorch      | 🚧Coming soon!    | 🚧Coming soon!     |
-
-
-Download weights file and put weights under the folder srgan/models/.
-
-Your directory structure should look like this:
-
-```
-srgan/
-    └── config.py
-    └── srgan.py
-    └── train.py
-    └── vgg.py
-    └── model
-          └── vgg19.npy
-    └── DIV2K
-          ├── DIV2K_train_HR
-          ├── DIV2K_train_LR_bicubic
-          ├── DIV2K_valid_HR
-          └── DIV2K_valid_LR_bicubic
-    └── models
-          ├── g.npz  # You should rename the weigths file. 
-          └── d.npz  # If you set os.environ['TL_BACKEND'] = 'tensorflow',you should rename srgan-g-tensorflow.npz to g.npz .
-
-```
-
-- Start evaluation.
 ```bash
 python train.py --mode=eval
 ```
 
-Results will be saved under the folder srgan/samples/. 
+### 3. Training on DIV2K or Custom Dataset
+1. Configure dataset paths in [config.py](config.py):
+   ```python
+   config.TRAIN.hr_img_path = 'DIV2K/DIV2K_train_HR/'
+   ```
+2. Start the two-phase training loop (warm-up MSE initialization followed by adversarial training):
+   ```bash
+   python train.py --mode=train
+   ```
 
-### Results
+---
 
-<a href="http://tensorlayer.readthedocs.io">
-<div align="center">
-	<img src="img/SRGAN_Result2.png" width="80%" height="50%"/>
-</div>
-</a>
-
-
-### Reference
-* [1] [Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network](https://arxiv.org/abs/1609.04802)
-* [2] [Is the deconvolution layer the same as a convolutional layer ?](https://arxiv.org/abs/1609.07009)
-
-
-
-### Citation
-If you find this project useful, we would be grateful if you cite the TensorLayer paper：
+## 📁 Repository Structure
 
 ```
-@article{tensorlayer2017,
-author = {Dong, Hao and Supratak, Akara and Mai, Luo and Liu, Fangde and Oehmichen, Axel and Yu, Simiao and Guo, Yike},
-journal = {ACM Multimedia},
-title = {{TensorLayer: A Versatile Library for Efficient Deep Learning Development}},
-url = {http://tensorlayer.org},
-year = {2017}
-}
-
-@inproceedings{tensorlayer2021,
-  title={TensorLayer 3.0: A Deep Learning Library Compatible With Multiple Backends},
-  author={Lai, Cheng and Han, Jiarong and Dong, Hao},
-  booktitle={2021 IEEE International Conference on Multimedia \& Expo Workshops (ICMEW)},
-  pages={1--3},
-  year={2021},
-  organization={IEEE}
-}
+SRGAN-SuperResolution/
+├── config.py           # Training and validation hyperparameters
+├── demo.py             # CLI inference script for custom images
+├── srgan.py            # SRGAN Generator (SRGAN_g) and Discriminator (SRGAN_d)
+├── train.py            # Training and evaluation loops
+├── vgg.py              # Pre-trained VGG-19 perceptual network
+├── requirements.txt    # Project dependencies
+├── img/                # Architecture diagrams and benchmark samples
+├── models/             # Checkpoints and pre-trained weights (gitignored)
+└── samples/            # Output high-resolution images (gitignored)
 ```
 
-### Other Projects
+---
 
-- [Style Transfer](https://github.com/tensorlayer/adaptive-style-transfer)
-- [Pose Estimation](https://github.com/tensorlayer/openpose)
+## 📚 References & Citation
 
-### Discussion
+- **Original Paper**: Ledig, C., Theis, L., Huszár, F., et al. (2017). *Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network*. CVPR 2017. [arXiv:1609.04802](https://arxiv.org/abs/1609.04802).
+- **Framework**: Built with [TensorLayerX](https://github.com/tensorlayer/TensorLayerX) & [PyTorch](https://pytorch.org/).
 
-- [TensorLayer Slack](https://join.slack.com/t/tensorlayer/shared_invite/enQtMjUyMjczMzU2Njg4LWI0MWU0MDFkOWY2YjQ4YjVhMzI5M2VlZmE4YTNhNGY1NjZhMzUwMmQ2MTc0YWRjMjQzMjdjMTg2MWQ2ZWJhYzc)
-- [TensorLayer WeChat](https://github.com/tensorlayer/tensorlayer-chinese/blob/master/docs/wechat_group.md)
+---
 
-### License
-
-- For academic and non-commercial use only.
-- For commercial use, please contact tensorlayer@gmail.com.
+## 👤 Author
+**Aditya Arote**  
+GitHub: [@AdityaArote](https://github.com/AdityaArote)
