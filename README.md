@@ -123,7 +123,7 @@ Experience real-time interactive super-resolution with dual-pane comparison, spl
 ```bash
 python app.py
 ```
-Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+Open [http://127.0.0.1:5050](http://127.0.0.1:5050) in your browser.
 
 ### 2. Run 4x Super-Resolution CLI (Demo)
 Run inference on a custom image using [demo.py](demo.py):
