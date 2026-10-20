@@ -1,15 +1,16 @@
 {
   "version": 2,
-  "public": true,
-  "cleanUrls": true,
+  "outputDirectory": "static",
+  "buildCommand": "echo 'Deploying static assets'",
+  "framework": null,
   "routes": [
     {
       "src": "/samples/(.*)",
-      "dest": "/static/samples/$1"
+      "dest": "/samples/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/static/$1"
+      "dest": "/$1"
     }
   ]
 }
