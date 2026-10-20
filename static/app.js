@@ -86,26 +86,45 @@
     fetchSamples();
   }
 
+  function getApiBase() {
+    return (window.APEX_API_BASE || localStorage.getItem('apex_api_base') || '').replace(/\/$/, '');
+  }
+
   // Check Backend Status
   async function fetchBackendStatus() {
+    const apiBase = getApiBase();
+    const pill = document.getElementById('backendStatusPill');
     try {
-      const res = await fetch('/api/status');
+      const res = await fetch(`${apiBase}/api/status`);
       if (res.ok) {
         const data = await res.json();
-        const pill = document.getElementById('backendStatusPill');
         if (pill && data.model_loaded) {
           pill.querySelector('.status-label').textContent = `SRGAN 4x • ${data.backend.toUpperCase()} Ready`;
+          return;
         }
       }
     } catch (e) {
       console.warn("Could not reach backend status endpoint", e);
+    }
+    if (pill) {
+      pill.querySelector('.status-label').textContent = `Set Backend API URL`;
+      pill.style.cursor = 'pointer';
+      pill.title = 'Click to connect a remote backend URL (e.g. Hugging Face Space)';
+      pill.onclick = () => {
+        const current = getApiBase();
+        const nextUrl = prompt('Enter your SRGAN Backend API URL (e.g. Hugging Face Space or Render URL):', current);
+        if (nextUrl !== null) {
+          localStorage.setItem('apex_api_base', nextUrl.trim());
+          window.location.reload();
+        }
+      };
     }
   }
 
   // Fetch Samples
   async function fetchSamples() {
     try {
-      const res = await fetch('/api/samples');
+      const res = await fetch(`${getApiBase()}/api/samples`);
       if (!res.ok) return;
       const data = await res.json();
       state.samples = data.samples || [];
@@ -382,7 +401,7 @@
       formData.append('contrast_boost', contrastToggle.checked ? 'true' : 'false');
       formData.append('output_format', state.format);
 
-      const response = await fetch('/api/refine', {
+      const response = await fetch(`${getApiBase()}/api/refine`, {
         method: 'POST',
         body: formData
       });

@@ -1,26 +1,15 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "250mb"
-      }
-    },
-    {
-      "src": "static/**",
-      "use": "@vercel/static"
-    }
-  ],
+  "public": true,
+  "cleanUrls": true,
   "routes": [
     {
-      "src": "/(samples/.*|app\\.js|style\\.css|index\\.html)",
-      "dest": "/static/$1"
+      "src": "/samples/(.*)",
+      "dest": "/static/samples/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "/static/$1"
     }
   ]
 }
