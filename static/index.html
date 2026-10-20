@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ApexSR — Neural Image Refinement & 4x Super-Resolution Studio</title>
+  <meta name="description" content="State-of-the-art SRGAN generative neural network image upscaler and refinement studio. Transform low-resolution images into crisp, high-fidelity 4x masterpieces.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="apex-app">
+  <!-- Ambient Background Glows -->
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-bottom-right"></div>
+  <div class="ambient-grid"></div>
+
+  <!-- Navigation / Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <div class="logo-gem">
+          <i data-lucide="sparkles" class="logo-icon"></i>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">Apex<span>SR</span></div>
+          <div class="brand-tagline">NEURAL REFINEMENT ENGINE</div>
+        </div>
+      </div>
+      
+      <div class="status-pill" id="backendStatusPill" title="PyTorch SRGAN Generator Active">
+        <span class="status-dot pulsing"></span>
+        <span class="status-label">SRGAN 4x • PyTorch Ready</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <!-- Quick View Mode Bar (Visible when image loaded) -->
+      <div class="view-mode-bar hidden" id="viewModeBar">
+        <button class="mode-btn active" data-mode="split" id="modeSplitBtn" title="Interactive Split Slider">
+          <i data-lucide="split-square-vertical"></i>
+          <span>Split Slider</span>
+        </button>
+        <button class="mode-btn" data-mode="side" id="modeSideBtn" title="Side by Side Comparison">
+          <i data-lucide="columns-2"></i>
+          <span>Side-by-Side</span>
+        </button>
+        <button class="mode-btn" data-mode="bicubic" id="modeBicubicBtn" title="SRGAN vs Bicubic Baseline">
+          <i data-lucide="git-compare"></i>
+          <span>vs Bicubic</span>
+        </button>
+        <button class="mode-btn" data-mode="loupe" id="modeLoupeBtn" title="Magnifier Loupe Lens">
+          <i data-lucide="search"></i>
+          <span>4x Loupe</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="icon-btn" id="shortcutsBtn" title="Keyboard Shortcuts (Press ?)">
+        <i data-lucide="command"></i>
+      </button>
+      <button class="icon-btn" id="themeToggleBtn" title="Visual Ambient Mood">
+        <i data-lucide="moon-star"></i>
+      </button>
+      <a href="https://arxiv.org/abs/1609.04802" target="_blank" rel="noopener" class="paper-badge" title="SRGAN Research Paper (Ledig et al.)">
+        <i data-lucide="file-text"></i>
+        <span>Paper (CVPR)</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Layout Container -->
+  <main class="main-container">
+    
+    <!-- Left / Center: Visual Display Canvas Area -->
+    <section class="viewport-section">
+      
+      <!-- Upload Empty State -->
+      <div class="upload-dropzone" id="dropZone">
+        <div class="dropzone-card">
+          <div class="pulse-ring"></div>
+          <div class="upload-icon-wrapper">
+            <i data-lucide="upload-cloud" class="upload-icon"></i>
+          </div>
+          
+          <h2 class="upload-title">Drop your image here to super-resolve</h2>
+          <p class="upload-desc">
+            Upscale 4x with deep neural hallucination, restoring fine textures, sharp edges, and photographic clarity.
+          </p>
+
+          <div class="upload-actions">
+            <label class="btn-primary" for="fileInput">
+              <i data-lucide="plus-circle"></i>
+              <span>Select Image</span>
+              <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" hidden>
+            </label>
+            <span class="action-divider">or paste from clipboard <kbd>Ctrl+V</kbd></span>
+          </div>
+
+          <!-- Supported Format tags -->
+          <div class="format-chips">
+            <span class="chip">PNG</span>
+            <span class="chip">JPEG</span>
+            <span class="chip">WEBP</span>
+            <span class="chip-accent">16x Pixel Multiplier</span>
+          </div>
+        </div>
+
+        <!-- Preset Samples Showcase -->
+        <div class="samples-tray">
+          <div class="tray-header">
+            <div class="tray-title">
+              <i data-lucide="sparkle"></i>
+              <span>Instant Test Samples</span>
+            </div>
+            <div class="tray-hint">Click any preset to test immediately</div>
+          </div>
+          
+          <div class="samples-grid" id="samplesGrid">
+            <!-- Dynamically populated via JS -->
+            <div class="sample-skeleton"></div>
+            <div class="sample-skeleton"></div>
+            <div class="sample-skeleton"></div>
+            <div class="sample-skeleton"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Comparison Viewport (Visible when image processed) -->
+      <div class="active-viewport hidden" id="activeViewport">
+        
+        <!-- Viewport Toolbar Floating Top -->
+        <div class="viewport-toolbar">
+          <div class="zoom-controls">
+            <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">
+              <i data-lucide="minus"></i>
+            </button>
+            <span class="zoom-level" id="zoomLevelText">100%</span>
+            <button class="zoom-btn" id="zoomInBtn" title="Zoom In">
+              <i data-lucide="plus"></i>
+            </button>
+            <button class="zoom-btn" id="zoomFitBtn" title="Reset View">
+              <i data-lucide="maximize-2"></i>
+            </button>
+          </div>
+
+          <div class="viewport-badges">
+            <span class="res-tag input-tag" id="tagInputRes">
+              <i data-lucide="arrow-down-left"></i> LR: <span id="labelInputDim">0×0</span>
+            </span>
+            <i data-lucide="arrow-right" class="tag-arrow"></i>
+            <span class="res-tag output-tag" id="tagOutputRes">
+              <i data-lucide="sparkles"></i> 4x SR: <span id="labelOutputDim">0×0</span>
+            </span>
+          </div>
+
+          <div class="viewport-actions">
+            <button class="tool-btn" id="newImageBtn" title="Upload New Image">
+              <i data-lucide="image-plus"></i>
+              <span>New</span>
+            </button>
+            <button class="tool-btn" id="fullscreenBtn" title="Toggle Fullscreen">
+              <i data-lucide="expand"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Stage -->
+        <div class="stage-container" id="stageContainer">
+          
+          <!-- Mode 1: Interactive Split Slider -->
+          <div class="split-slider-wrapper" id="splitSliderWrapper">
+            <!-- Base Image (Underneath: Refined SRGAN Image) -->
+            <div class="image-layer layer-refined" id="layerRefined">
+              <img id="refinedImg" alt="SRGAN 4x Refined Image" draggable="false">
+              <div class="floating-badge badge-refined">
+                <span class="badge-icon">✦</span>
+                <span class="badge-title">SRGAN 4x Refined</span>
+                <span class="badge-sub">Deep Generative Detail</span>
+              </div>
+            </div>
+
+            <!-- Clip Image (Top layer: Original Low-Res Image) -->
+            <div class="image-layer layer-original" id="layerOriginal">
+              <img id="originalImg" alt="Original Low-Res Image" draggable="false">
+              <div class="floating-badge badge-original">
+                <span class="badge-icon">◉</span>
+                <span class="badge-title">Original Low-Res</span>
+                <span class="badge-sub">Interpolated Preview</span>
+              </div>
+            </div>
+
+            <!-- Draggable Divider Handle -->
+            <div class="slider-divider" id="sliderDivider">
+              <div class="divider-line"></div>
+              <div class="divider-handle">
+                <i data-lucide="chevrons-left-right" class="handle-icon"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode 2: Side-by-Side Dual View (Hidden by default) -->
+          <div class="side-by-side-wrapper hidden" id="sideWrapper">
+            <div class="side-panel side-lr">
+              <div class="side-header">
+                <span class="dot lr-dot"></span>
+                <span>Original Low-Res</span>
+              </div>
+              <div class="side-img-box">
+                <img id="sideOriginalImg" alt="Original" draggable="false">
+              </div>
+            </div>
+            <div class="side-panel side-sr">
+              <div class="side-header">
+                <span class="dot sr-dot"></span>
+                <span>SRGAN 4x Refined (Neural Super-Resolution)</span>
+              </div>
+              <div class="side-img-box">
+                <img id="sideRefinedImg" alt="SRGAN Refined" draggable="false">
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode 3: Bicubic vs SRGAN AI Baseline (Hidden by default) -->
+          <div class="bicubic-compare-wrapper hidden" id="bicubicWrapper">
+            <div class="side-panel side-bicubic">
+              <div class="side-header">
+                <span class="dot bicubic-dot"></span>
+                <span>Standard Bicubic 4x (Blurry Baseline)</span>
+              </div>
+              <div class="side-img-box">
+                <img id="bicubicImg" alt="Bicubic 4x" draggable="false">
+              </div>
+            </div>
+            <div class="side-panel side-sr">
+              <div class="side-header">
+                <span class="dot sr-dot"></span>
+                <span>SRGAN Generative 4x (Sharp Photoreal)</span>
+              </div>
+              <div class="side-img-box">
+                <img id="bicubicRefinedImg" alt="SRGAN" draggable="false">
+              </div>
+            </div>
+          </div>
+
+          <!-- Magnifier Loupe Lens Element -->
+          <div class="loupe-lens hidden" id="loupeLens">
+            <canvas id="loupeCanvas" width="220" height="220"></canvas>
+            <div class="loupe-crosshair"></div>
+            <div class="loupe-badge">4x Loupe</div>
+          </div>
+
+          <!-- Processing Overlay Spinner -->
+          <div class="processing-overlay hidden" id="processingOverlay">
+            <div class="processing-card">
+              <div class="ai-orbit-spinner">
+                <div class="orbit orbit-1"></div>
+                <div class="orbit orbit-2"></div>
+                <div class="orbit-core"></div>
+              </div>
+              <h3 class="processing-title">Running SRGAN Neural Network...</h3>
+              <p class="processing-desc" id="processingDesc">Synthesizing high-frequency textures & 16x pixels</p>
+              <div class="processing-progress-bar">
+                <div class="progress-fill"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Telemetry Bottom Bar -->
+        <div class="telemetry-bar">
+          <div class="metric-card">
+            <div class="metric-icon-box">
+              <i data-lucide="maximize-2"></i>
+            </div>
+            <div class="metric-data">
+              <div class="metric-label">Resolution Scale</div>
+              <div class="metric-val text-gradient" id="mScale">4x / 16x Pixels</div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-box">
+              <i data-lucide="zap"></i>
+            </div>
+            <div class="metric-data">
+              <div class="metric-label">Inference Latency</div>
+              <div class="metric-val text-cyan" id="mLatency">-- ms</div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-box">
+              <i data-lucide="activity"></i>
+            </div>
+            <div class="metric-data">
+              <div class="metric-label">High-Freq Sharpness</div>
+              <div class="metric-val text-emerald" id="mSharpness">-- %</div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-box">
+              <i data-lucide="gauge"></i>
+            </div>
+            <div class="metric-data">
+              <div class="metric-label">PSNR vs Bicubic</div>
+              <div class="metric-val text-amber" id="mPsnr">-- dB</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- Right: Studio Controls & Enhancement Drawer -->
+    <aside class="controls-panel">
+      
+      <!-- Panel Header -->
+      <div class="panel-section-header">
+        <div class="section-title">
+          <i data-lucide="sliders" class="title-icon"></i>
+          <span>Refinement Studio</span>
+        </div>
+        <button class="btn-text" id="resetSlidersBtn" title="Reset all tuning parameters">Reset</button>
+      </div>
+
+      <!-- Presets / Quick Modes -->
+      <div class="control-group">
+        <label class="group-label">Enhancement Profiles</label>
+        <div class="profile-grid">
+          <button class="profile-chip active" data-profile="balanced">
+            <i data-lucide="feather"></i>
+            <span>Photoreal Balanced</span>
+          </button>
+          <button class="profile-chip" data-profile="crisp">
+            <i data-lucide="wand-2"></i>
+            <span>Ultra Crisp</span>
+          </button>
+          <button class="profile-chip" data-profile="portrait">
+            <i data-lucide="smile"></i>
+            <span>Soft Portrait</span>
+          </button>
+          <button class="profile-chip" data-profile="vivid">
+            <i data-lucide="sun-medium"></i>
+            <span>HDR Vivid</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fine-Tuning Sliders -->
+      <div class="control-group">
+        <div class="group-header-with-value">
+          <label class="group-label" for="sharpnessSlider">Texture Sharpness</label>
+          <span class="slider-value" id="sharpnessVal">25%</span>
+        </div>
+        <input type="range" id="sharpnessSlider" min="0" max="100" value="25" class="apex-slider">
+        <div class="slider-caption">Unsharp masking on residual hallucinated edges</div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-header-with-value">
+          <label class="group-label" for="denoiseSlider">Edge-Preserving Denoise</label>
+          <span class="slider-value" id="denoiseVal">0%</span>
+        </div>
+        <input type="range" id="denoiseSlider" min="0" max="100" value="0" class="apex-slider">
+        <div class="slider-caption">Bilateral smoothing while keeping sharp contours</div>
+      </div>
+
+      <!-- Toggles -->
+      <div class="control-group">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-title">Dynamic Contrast (CLAHE)</span>
+            <span class="toggle-desc">Boost local luminance & shadow contrast</span>
+          </div>
+          <label class="apex-switch">
+            <input type="checkbox" id="contrastToggle">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="group-label">Input Scaling Mode</label>
+        <div class="select-wrapper">
+          <select id="maxDimSelect" class="apex-select">
+            <option value="640" selected>Adaptive Turbo (Max 640px LR → ~2560px Output)</option>
+            <option value="384">Speed Preview (Max 384px LR → ~1536px Output)</option>
+            <option value="1080">Full Resolution (Max 1080px LR → ~4320px 4K Output)</option>
+            <option value="0">Original Raw Size (Direct 4x unconstrained)</option>
+          </select>
+          <i data-lucide="chevron-down" class="select-icon"></i>
+        </div>
+      </div>
+
+      <!-- Re-Apply Action Button -->
+      <button class="btn-primary w-full pulse-on-hover" id="reRefineBtn" disabled>
+        <i data-lucide="refresh-cw" id="reRefineIcon"></i>
+        <span>Re-Process with Settings</span>
+      </button>
+
+      <!-- Divider -->
+      <div class="drawer-divider"></div>
+
+      <!-- Export / Download Section -->
+      <div class="export-section">
+        <label class="group-label">Export Masterpiece</label>
+        
+        <div class="export-format-selector">
+          <button class="format-btn active" data-fmt="png">PNG (Lossless)</button>
+          <button class="format-btn" data-fmt="jpg">JPEG (Photo)</button>
+          <button class="format-btn" data-fmt="webp">WebP (Modern)</button>
+        </div>
+
+        <div class="export-actions">
+          <button class="btn-download" id="downloadRefinedBtn" disabled>
+            <i data-lucide="download"></i>
+            <span>Download 4x Refined</span>
+          </button>
+          
+          <button class="btn-secondary" id="downloadCardBtn" disabled title="Download a presentation graphic with Before/After comparison">
+            <i data-lucide="layout-grid"></i>
+            <span>Export Comparison Card</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Model Spec & Architecture Badge -->
+      <div class="model-spec-card">
+        <div class="spec-row">
+          <span class="spec-label">Architecture</span>
+          <span class="spec-val">SRGAN Generator</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Residual Blocks</span>
+          <span class="spec-val">16 Skip-Connected</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Upscaling Technique</span>
+          <span class="spec-val">Subpixel Conv (PixelShuffle)</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Backend Engine</span>
+          <span class="spec-val text-cyan">PyTorch / TLX Core</span>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Shortcuts Modal -->
+  <div class="modal-backdrop hidden" id="shortcutsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="keyboard"></i>
+          <span>Keyboard Shortcuts</span>
+        </div>
+        <button class="modal-close" id="closeModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="shortcuts-list">
+        <div class="shortcut-item">
+          <span class="shortcut-desc">Paste image from clipboard</span>
+          <kbd>Ctrl / Cmd + V</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-desc">Move Split Slider left / right</span>
+          <kbd>← / →</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-desc">Toggle Side-by-Side view</span>
+          <kbd>S</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-desc">Toggle Bicubic vs AI baseline</span>
+          <kbd>B</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-desc">Toggle 4x Loupe Magnifier</span>
+          <kbd>L</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-desc">Toggle Fullscreen mode</span>
+          <kbd>F</kbd>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Hidden Canvas for Exporting Side-by-Side Cards -->
+  <canvas id="exportCanvas" style="display: none;"></canvas>
+
+  <script src="/app.js"></script>
+  <script>
+    // Initialize Lucide icons
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

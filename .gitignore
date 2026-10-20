@@ -2,7 +2,8 @@
 *.pyc
 .DS_Store
 *.npz
-sample/
-samples/
+/sample/
+/samples/
+!/static/samples/
 checkpoint/
 __pycache__/

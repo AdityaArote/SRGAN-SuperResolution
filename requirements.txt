@@ -6,3 +6,5 @@ torch>=1.10.0
 torchvision
 gdown
 scipy>=1.7.0
+Flask>=2.0.0
+flask-cors>=3.0.0

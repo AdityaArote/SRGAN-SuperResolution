@@ -117,7 +117,15 @@ gdown 1GlU9At-5XEDilgnt326fyClvZB_fsaFZ -O models/g.npz
 
 ## 💻 Usage
 
-### 1. Run 4x Super-Resolution on Any Image (Demo)
+### 1. Launch Interactive Web Application (ApexSR UI)
+Experience real-time interactive super-resolution with dual-pane comparison, split-slider, preset samples, and metrics:
+
+```bash
+python app.py
+```
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+
+### 2. Run 4x Super-Resolution CLI (Demo)
 Run inference on a custom image using [demo.py](demo.py):
 
 ```bash
@@ -129,14 +137,14 @@ This generates:
 - **`[name]_bicubic.png`**: Standard 4x bicubic baseline.
 - **`[name]_srgan.png`**: Photorealistic 4x SRGAN result.
 
-### 2. Evaluation Mode
+### 3. Evaluation Mode
 Run evaluation against validation images or fallback samples:
 
 ```bash
 python train.py --mode=eval
 ```
 
-### 3. Training on DIV2K or Custom Dataset
+### 4. Training on DIV2K or Custom Dataset
 1. Configure dataset paths in [config.py](config.py):
    ```python
    config.TRAIN.hr_img_path = 'DIV2K/DIV2K_train_HR/'
@@ -152,6 +160,8 @@ python train.py --mode=eval
 
 ```
 SRGAN-SuperResolution/
+├── app.py              # Flask server backend for web application
+├── static/             # Web UI assets (HTML, CSS, JS, sample presets)
 ├── config.py           # Training and validation hyperparameters
 ├── demo.py             # CLI inference script for custom images
 ├── srgan.py            # SRGAN Generator (SRGAN_g) and Discriminator (SRGAN_d)
