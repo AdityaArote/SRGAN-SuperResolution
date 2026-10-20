@@ -31,6 +31,41 @@ class ResidualBlock(Module):
         return x
 
 
+def tf_depth_to_space_nchw(x, block_size=2):
+    """
+    TensorFlow-compatible depth_to_space for NCHW tensors.
+    The pretrained weights were trained with TensorFlow NCHW depth_to_space,
+    where the r*r*C channels are formatted as (r, r, C) rather than PyTorch's (C, r, r).
+    """
+    N, rrc, H, W = x.shape
+    r = block_size
+    C = rrc // (r * r)
+    x = x.view(N, r, r, C, H, W)
+    x = x.permute(0, 3, 4, 1, 5, 2).contiguous()
+    return x.view(N, C, H * r, W * r)
+
+
+class CompatibleSubpixelConv2d(Module):
+    """
+    SubpixelConv2d with cross-backend layout alignment.
+    Ensures pre-trained weights from TensorFlow match correctly in PyTorch backend.
+    """
+    def __init__(self, scale=2, data_format='channels_first', act=None, name=None):
+        super().__init__(name=name, act=act)
+        self.scale = scale
+        self.data_format = data_format
+
+    def forward(self, x):
+        if tlx.BACKEND == 'torch' and self.data_format == 'channels_first':
+            out = tf_depth_to_space_nchw(x, self.scale)
+        else:
+            depth_to_space = tlx.ops.DepthToSpace(block_size=self.scale, data_format=self.data_format)
+            out = depth_to_space(x)
+        if self.act is not None:
+            out = self.act(out)
+        return out
+
+
 class SRGAN_g(Module):
     """ Generator in Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network
     feature maps (n) and stride (s) feature maps (n) and stride (s)
@@ -49,9 +84,9 @@ class SRGAN_g(Module):
         )
         self.bn1 = BatchNorm2d(num_features=64, act=None, gamma_init=G_init, data_format='channels_first')
         self.conv3 = Conv2d(out_channels=256, kernel_size=(3, 3), stride=(1, 1), padding='SAME', W_init=W_init, data_format='channels_first')
-        self.subpiexlconv1 = SubpixelConv2d(data_format='channels_first', scale=2, act=tlx.ReLU)
+        self.subpiexlconv1 = CompatibleSubpixelConv2d(data_format='channels_first', scale=2, act=tlx.ReLU)
         self.conv4 = Conv2d(out_channels=256, kernel_size=(3, 3), stride=(1, 1), padding='SAME', W_init=W_init, data_format='channels_first')
-        self.subpiexlconv2 = SubpixelConv2d(data_format='channels_first', scale=2, act=tlx.ReLU)
+        self.subpiexlconv2 = CompatibleSubpixelConv2d(data_format='channels_first', scale=2, act=tlx.ReLU)
         self.conv5 = Conv2d(3, kernel_size=(1, 1), stride=(1, 1), act=tlx.Tanh, padding='SAME', W_init=W_init, data_format='channels_first')
 
     def make_layer(self):

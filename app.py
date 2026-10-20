@@ -141,8 +141,11 @@ def run_srgan_inference(img_bgr, max_dim=640, sharpness=0.2, denoise=0.0, contra
         
     cur_h, cur_w = lr_img.shape[:2]
     
-    # Prepare normalized tensor [-1, 1]
-    lr_tensor = (lr_img / 127.5) - 1.0
+    # Convert OpenCV BGR to RGB for neural network
+    lr_rgb = cv2.cvtColor(lr_img, cv2.COLOR_BGR2RGB)
+    
+    # Prepare normalized tensor [-1, 1] in NCHW layout
+    lr_tensor = (lr_rgb / 127.5) - 1.0
     lr_tensor = np.asarray(lr_tensor, dtype=np.float32)
     lr_tensor = np.transpose(lr_tensor, axes=[2, 0, 1])
     lr_tensor = lr_tensor[np.newaxis, :, :, :]
@@ -154,11 +157,11 @@ def run_srgan_inference(img_bgr, max_dim=640, sharpness=0.2, denoise=0.0, contra
     t_inf_end = time.time()
     inference_ms = (t_inf_end - t_inf_start) * 1000.0
     
-    # Convert back to uint8 BGR
+    # Convert back from [-1, 1] NCHW to uint8 HWC RGB, then to OpenCV BGR
     sr_np = tlx.ops.convert_to_numpy(sr_tensor)
-    sr_img = np.asarray((sr_np[0] + 1.0) * 127.5, dtype=np.uint8)
-    sr_img = np.clip(sr_img, 0, 255)
-    sr_img = np.transpose(sr_img, axes=[1, 2, 0])
+    sr_np = np.transpose(sr_np[0], axes=[1, 2, 0])
+    sr_rgb = np.clip((sr_np + 1.0) * 127.5, 0, 255).astype(np.uint8)
+    sr_img = cv2.cvtColor(sr_rgb, cv2.COLOR_RGB2BGR)
     
     # Baseline comparison: Standard Bicubic 4x
     bicubic_img = cv2.resize(lr_img, (cur_w * 4, cur_h * 4), interpolation=cv2.INTER_CUBIC)

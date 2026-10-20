@@ -42,8 +42,10 @@ def run_sr(image_path, weights_path, output_dir):
 
     # Downscale to create LR input if larger than 256
     # Or super-resolve directly
+    # Convert BGR to RGB for neural network
     lr_img = img
-    lr_tensor = (lr_img / 127.5) - 1.0
+    lr_rgb = cv2.cvtColor(lr_img, cv2.COLOR_BGR2RGB)
+    lr_tensor = (lr_rgb / 127.5) - 1.0
     lr_tensor = np.asarray(lr_tensor, dtype=np.float32)
     lr_tensor = np.transpose(lr_tensor, axes=[2, 0, 1])
     lr_tensor = lr_tensor[np.newaxis, :, :, :]
@@ -52,9 +54,9 @@ def run_sr(image_path, weights_path, output_dir):
     print("[*] Running SRGAN super-resolution (4x)...")
     sr_tensor = G(lr_tensor)
     sr_np = tlx.ops.convert_to_numpy(sr_tensor)
-    sr_img = np.asarray((sr_np[0] + 1.0) * 127.5, dtype=np.uint8)
-    sr_img = np.clip(sr_img, 0, 255)
-    sr_img = np.transpose(sr_img, axes=[1, 2, 0])
+    sr_np = np.transpose(sr_np[0], axes=[1, 2, 0])
+    sr_rgb = np.clip((sr_np + 1.0) * 127.5, 0, 255).astype(np.uint8)
+    sr_img = cv2.cvtColor(sr_rgb, cv2.COLOR_RGB2BGR)
 
     # Bicubic comparison
     bicubic_img = cv2.resize(lr_img, (w * 4, h * 4), interpolation=cv2.INTER_CUBIC)
